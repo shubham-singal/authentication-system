@@ -35,7 +35,7 @@ app.use(express.static('public', {
 
 app.get('/users', async (req, res) => {
     try {
-        const [ rows ]  = await db.query(`SELECT name, password FROM users`);
+        const [ rows ]  = await db.query(`SELECT first_name, last_name, email_id FROM users`);
         res.status(200).json(rows);
     } catch (err) {
         console.error(err.message);
@@ -47,13 +47,13 @@ app.get('/users', async (req, res) => {
 app.get('/users/:id', async (req, res) => {
     try {
         const id = req.params.id;
-        const [ rows ] = await db.query(`SELECT name, password FROM USERS WHERE id = ?`, [id]);
+        const [ rows ] = await db.query(`SELECT first_name, email_id FROM USERS WHERE id = ?`, [id]);
         const row = rows[0];
 
         if(row == null || row == undefined) {
             res.status(200).json("User not found");
         } else {
-            res.status(200).json({name: row.name});
+            res.status(200).json({name: row.first_name, email: row.email_id});
         }
     } catch (err) {
         res.status(500).send();
@@ -63,14 +63,11 @@ app.get('/users/:id', async (req, res) => {
 app.post('/users', async (req, res) => {
 
     try {
-        const name = req.body.name;
-        const email = req.body.email;
-        const password = req.body.password;
+       const user = getUser(req.body);
+        const hashedPassword = await bcrypt.hash(user.password, 10);
 
-        const hashedPassword = await bcrypt.hash(password, 10);
-
-        await db.query(`INSERT INTO users (name, email_id, password) VALUES (?, ?, ?)`, [name, email, hashedPassword]);
-        res.redirect(`/login.html?message=${encodeURIComponent(`Username ${email} created successfully`)}`);
+        await db.query(`INSERT INTO users (first_name, last_name, email_id, password) VALUES (?, ?, ?, ?)`, [user.firstName, user.lastName, user.email, hashedPassword]);
+        res.redirect(`/login.html?message=${encodeURIComponent(`Username ${user.email} created successfully`)}`);
         // res.status(201).json({message: `Username ${name} created successfully`});
     } catch(err) {
         console.error(err);
@@ -106,12 +103,13 @@ app.delete('/users/:id', async (req, res) => {
     try {
         const id = parseInt(req.params.id);
         const query = 'SELECT * FROM users WHERE id = ?';
-        const  result = db.execute(query, id);
+        const [ result ] = await db.execute(query, [id]);
 
         if(result.affectedRows === 0) {
             return res.status(404).json( {message : 'User not found'});
         }
         
+        await db.execute('DELETE FROM users WHERE id = ?', [id]);
         return res.status(200).json({message: `User ${id} deleted successfully` });
 
     } catch (err) {
@@ -119,6 +117,17 @@ app.delete('/users/:id', async (req, res) => {
         return res.status(500).json({message : err.message});
     }
 });
+
+function getUser(reqBody) {
+    const user = {
+        firstName: reqBody.firstName,
+        lastName: reqBody.lastName,
+        email: reqBody.email,
+        password: reqBody.password 
+    }
+
+    return user;
+}
 
 app.listen(port, () => {
     console.log("App listening on port 3000");
