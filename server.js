@@ -3,11 +3,35 @@ const app = express();
 const port = 3000;
 const db = require('./db');
 const bcrypt = require('bcrypt');
+const session = require('express-session');
 
+function requireAuth(req, res, next) {
+    if (req.session.userId) {
+        next();
+    } else {
+        res.status(401).send('You must be logged in');
+    }
+}
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static('public'));
+app.use(session({
+    secret: 'my-secret-key',
+    resave: false,
+    saveUninitialized: false
+}));
+
+app.get('/home.html', requireAuth, (req, res) => {
+    res.sendFile(__dirname + '/public/home.html');
+});
+
+app.use(express.static('public', {
+    index: false
+}));
+
+
+
+
 
 app.get('/users', async (req, res) => {
     try {
@@ -60,18 +84,20 @@ app.post('/users/login', async (req, res) => {
         const email = req.body.email;
         const password = req.body.password;
 
-        const [ user1 ] = await db.query(`SELECT email_id, password FROM users WHERE email_id = ?`, [email] );
+        const [ user1 ] = await db.query(`SELECT id, email_id, password FROM users WHERE email_id = ?`, [email] );
         const user = user1[0];
         if(user == null || user == undefined) {
             res.status(401).json('Username/Password is incorrect. Please try again');
         } else {
             if(await bcrypt.compare(password, user.password)) {
+                req.session.userId = user.id;
                 res.redirect('/home.html');
             } else {
                 res.status(401).json('Username/Password is incorrect. Please try again');
             }
         }
     } catch (err) {
+        console.error(err.message);
         res.status(500).json( {error : err.message} );
     }
 });
