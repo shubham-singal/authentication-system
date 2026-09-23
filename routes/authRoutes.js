@@ -23,7 +23,7 @@ router.post('/users', async (req, res) => {
 });
 
 //Sign In
-router.post('/users/login', requireAuth, async (req, res) => {
+router.post('/users/login', async (req, res) => {
     try {
         const email = req.body.email;
         const password = req.body.password;
