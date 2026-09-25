@@ -1,7 +1,7 @@
-const logOutBtnElem = document.getElementById('btn-signout');
+const signOutBtnElem = document.getElementById('btn-signout');
 
-logOutBtnElem.addEventListener('click', async () => {
-    const response = await fetch('/users/logout', {
+signOutBtnElem.addEventListener('click', async () => {
+    const response = await fetch('/users/signout', {
         method: 'POST'
     });
 
